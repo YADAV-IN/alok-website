@@ -1,9 +1,18 @@
-import { expect, test } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+beforeEach(() => {
+  global.fetch = vi.fn(() =>
+    Promise.resolve({
+      ok: false,
+      json: () => Promise.resolve({}),
+    })
+  );
+});
+
+test('renders ALOK brand title', () => {
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeDefined();
+  const title = screen.getByText(/ALOK/i);
+  expect(title).toBeDefined();
 });
