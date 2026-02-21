@@ -16,11 +16,16 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
+const IS_VERCEL = process.env.VERCEL === '1';
+const UPLOAD_DIR = process.env.UPLOAD_DIR || (IS_VERCEL ? '/tmp/uploads' : path.join(__dirname, '..', 'uploads'));
 
 const ensureDir = (dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('Could not create dir:', dir, err.message);
   }
 };
 
@@ -51,8 +56,34 @@ app.use(cors({
 app.use(express.json({ limit: '2mb' }));
 app.use('/uploads', express.static(UPLOAD_DIR));
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+let dbInitialized = false;
+let dbInitPromise = null;
+
+const ensureDbInit = async () => {
+  if (dbInitialized) return;
+  if (!dbInitPromise) {
+    dbInitPromise = initDb().then(() => { dbInitialized = true; }).catch(err => {
+      console.error('DB init error:', err);
+      dbInitPromise = null;
+      throw err;
+    });
+  }
+  return dbInitPromise;
+};
+
+// Initialize DB on first request (lazy init for Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await ensureDbInit();
+    next();
+  } catch (err) {
+    console.error('DB init middleware error:', err);
+    return res.status(500).json({ error: 'Database initialization failed' });
+  }
+});
+
+app.get('/api/health', async (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString(), vercel: IS_VERCEL });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -589,13 +620,19 @@ app.use((error, req, res, next) => {
   return res.status(500).json({ error: 'Unexpected server error.' });
 });
 
-initDb()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`ALOK API running on port ${PORT}`);
+// Only listen when NOT on Vercel (Vercel handles this itself)
+if (!IS_VERCEL) {
+  initDb()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`ALOK API running on port ${PORT}`);
+      });
+    })
+    .catch((error) => {
+      console.error('Failed to init DB', error);
+      process.exit(1);
     });
-  })
-  .catch((error) => {
-    console.error('Failed to init DB', error);
-    process.exit(1);
-  });
+}
+
+// Export for Vercel serverless
+export default app;

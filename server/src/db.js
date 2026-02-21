@@ -4,7 +4,8 @@ import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
 
-const DB_PATH = process.env.DB_PATH || './data/alok.db';
+const IS_VERCEL = process.env.VERCEL === '1';
+const DB_PATH = process.env.DB_PATH || (IS_VERCEL ? '/tmp/alok.db' : './data/alok.db');
 
 let dbPromise;
 
