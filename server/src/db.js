@@ -28,9 +28,13 @@ export const initDb = async () => {
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
+      role TEXT DEFAULT 'author',
+      status TEXT DEFAULT 'active',
       bio TEXT,
       avatar_url TEXT,
-      created_at TEXT NOT NULL
+      last_login TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT
     );
   `);
   await db.exec(`
@@ -49,6 +53,7 @@ export const initDb = async () => {
       published_at TEXT NOT NULL,
       reading_time INTEGER DEFAULT 3,
       is_featured INTEGER DEFAULT 0,
+      is_breaking INTEGER DEFAULT 0,
       views INTEGER DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -66,23 +71,113 @@ export const initDb = async () => {
     );
   `);
 
+  // Migration: Add is_breaking column if not exists
+  try {
+    const tableInfo = await db.all('PRAGMA table_info(news)');
+    const hasBreakingColumn = tableInfo.some(col => col.name === 'is_breaking');
+    if (!hasBreakingColumn) {
+      await db.exec('ALTER TABLE news ADD COLUMN is_breaking INTEGER DEFAULT 0');
+      console.log('✅ Added is_breaking column to news table');
+    }
+  } catch (error) {
+    console.error('Migration error:', error);
+  }
+
+  // Migration: Add role and status columns to admins if not exist
+  try {
+    const adminTableInfo = await db.all('PRAGMA table_info(admins)');
+    const adminColumns = adminTableInfo.map(col => col.name);
+    
+    if (!adminColumns.includes('role')) {
+      await db.exec('ALTER TABLE admins ADD COLUMN role TEXT DEFAULT \'author\'');
+      console.log('✅ Added role column to admins table');
+    }
+    if (!adminColumns.includes('status')) {
+      await db.exec('ALTER TABLE admins ADD COLUMN status TEXT DEFAULT \'active\'');
+      console.log('✅ Added status column to admins table');
+    }
+    if (!adminColumns.includes('last_login')) {
+      await db.exec('ALTER TABLE admins ADD COLUMN last_login TEXT');
+      console.log('✅ Added last_login column to admins table');
+    }
+    if (!adminColumns.includes('updated_at')) {
+      await db.exec('ALTER TABLE admins ADD COLUMN updated_at TEXT');
+      console.log('✅ Added updated_at column to admins table');
+    }
+  } catch (error) {
+    console.error('Admin table migration error:', error);
+  }
+
+  // Migration: Add advanced fields if not exist
+  try {
+    const tableInfo = await db.all('PRAGMA table_info(news)');
+    const columns = tableInfo.map(col => col.name);
+    
+    const newColumns = [
+      { name: 'gallery_urls', type: 'TEXT', default: null },
+      { name: 'audio_url', type: 'TEXT', default: null },
+      { name: 'author_name', type: 'TEXT', default: null },
+      { name: 'author_email', type: 'TEXT', default: null },
+      { name: 'author_twitter', type: 'TEXT', default: null },
+      { name: 'author_instagram', type: 'TEXT', default: null },
+      { name: 'meta_description', type: 'TEXT', default: null },
+      { name: 'meta_keywords', type: 'TEXT', default: null },
+      { name: 'seo_title', type: 'TEXT', default: null },
+      { name: 'location', type: 'TEXT', default: null },
+      { name: 'coordinates', type: 'TEXT', default: null },
+      { name: 'twitter_url', type: 'TEXT', default: null },
+      { name: 'facebook_url', type: 'TEXT', default: null },
+      { name: 'instagram_url', type: 'TEXT', default: null },
+      { name: 'youtube_url', type: 'TEXT', default: null },
+      { name: 'status', type: 'TEXT', default: 'published' },
+      { name: 'priority', type: 'TEXT', default: 'normal' },
+      { name: 'language', type: 'TEXT', default: 'hi' },
+      { name: 'expire_at', type: 'TEXT', default: null }
+    ];
+
+    for (const col of newColumns) {
+      if (!columns.includes(col.name)) {
+        const defaultClause = col.default !== null ? ` DEFAULT '${col.default}'` : '';
+        await db.exec(`ALTER TABLE news ADD COLUMN ${col.name} ${col.type}${defaultClause}`);
+        console.log(`✅ Added ${col.name} column to news table`);
+      }
+    }
+  } catch (error) {
+    console.error('Advanced fields migration error:', error);
+  }
+
   const adminCount = await db.get('SELECT COUNT(*) as count FROM admins');
+  const defaultEmail = process.env.ADMIN_EMAIL || 'vipno1official@gmail.com';
+  const defaultPassword = process.env.ADMIN_PASSWORD || 'preetam6388';
+  const defaultName = process.env.ADMIN_NAME || 'ALOK एडमिन';
   if (adminCount.count === 0) {
-    const defaultEmail = process.env.ADMIN_EMAIL || 'vipno1official@gmail.com';
-    const defaultPassword = process.env.ADMIN_PASSWORD || 'preetam6388';
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
+    const now = new Date().toISOString();
     await db.run(
-      `INSERT INTO admins (name, email, password_hash, bio, avatar_url, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)` ,
+      `INSERT INTO admins (name, email, password_hash, role, status, bio, avatar_url, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
       [
-        process.env.ADMIN_NAME || 'ALOK एडमिन',
+        defaultName,
         defaultEmail,
         passwordHash,
+        'admin',
+        'active',
         'डिजिटल न्यूज़रूम बिल्डर और BJMC स्टूडेंट प्रोफाइल।',
         '',
-        new Date().toISOString(),
+        now,
+        now,
       ]
     );
+    console.log('✅ Primary admin created:', defaultEmail);
+  } else {
+    // Enforce primary admin credentials and role
+    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+    const now = new Date().toISOString();
+    await db.run(
+      'UPDATE admins SET name = ?, email = ?, password_hash = ?, role = \'admin\', status = \'active\', updated_at = ? WHERE id = 1',
+      [defaultName, defaultEmail, passwordHash, now]
+    );
+    console.log('✅ Primary admin credentials updated');
   }
   
   const settingsCount = await db.get('SELECT COUNT(*) as count FROM site_settings');

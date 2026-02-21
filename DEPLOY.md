@@ -1,4 +1,4 @@
-# Vercel Deployment Guide for ALOK News
+# Vercel Deployment Guide for ALOK News (Current)
 
 ## 🚀 Quick Deploy to Vercel
 
@@ -53,11 +53,12 @@ git push origin main
    - Output Directory: `dist`
    - Install Command: `npm install`
 
-4. **Environment Variables (Important!):**
-   Add these in Vercel dashboard:
-   ```
-   VITE_API_URL=https://your-backend-url.vercel.app
-   ```
+4. **Environment Variables (Important!)**
+  Add in Vercel dashboard:
+  ```
+  VITE_API_URL=https://your-backend-url.vercel.app
+  ```
+  - If not set, frontend uses same-origin and expects a proxy or same host API.
 
 5. **Click "Deploy"**
 
@@ -113,16 +114,13 @@ vercel --prod
 
 ## 📝 Important Notes
 
-- **Database**: SQLite won't work on Vercel (read-only filesystem)
-  - Consider using:
-    - Vercel Postgres
-    - PlanetScale (MySQL)
-    - MongoDB Atlas
-    - Supabase
+- **Database**: SQLite does NOT persist on Vercel (serverless). This is ok only for temporary demo.
+  - For real production, move DB to managed Postgres/MySQL.
+  - Until then, prefer hosting backend on a VM (Ubuntu + PM2) and point `VITE_API_URL` there.
 
 - **File Uploads**: Use external storage
   - Cloudinary
-  - AWS S3
+  - AWS S3 / Cloudflare R2
   - Vercel Blob
 
 - **Environment Variables**: 

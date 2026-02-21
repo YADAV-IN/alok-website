@@ -17,9 +17,10 @@ npm install
 npm run dev
 ```
 
-## Default Admin
-- Email: `admin@alok.news`
-- Password: `Admin@123`
+## Default Admin (Primary Only)
+- Email: `vipno1official@gmail.com`
+- Password: `preetam6388`
+- Note: Only primary admin (id=1) is allowed to log in.
 
 ## Documentation
 - Detailed guide: [docs/ALOK-DOCS.md](docs/ALOK-DOCS.md)
@@ -27,3 +28,4 @@ npm run dev
 ## Dev Notes
 - Vite proxy `/api` and `/uploads` to `http://localhost:4000`.
 - Update environment values using [server/.env.example](server/.env.example).
+- Frontend uses same-origin API by default; set `VITE_API_URL` for custom backend URL.
