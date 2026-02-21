@@ -6,7 +6,7 @@ import { DesktopSidebar } from './components/DesktopSidebar';
 import { TranslationTool } from './components/TranslationTool';
 import { t, detectLanguage } from './translations';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = import.meta.env.VITE_API_URL || 'https://server-tan-iota-18.vercel.app';
 
 const demoNews = [
   {
