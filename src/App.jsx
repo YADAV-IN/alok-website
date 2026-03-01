@@ -985,7 +985,7 @@ function App() {
               </div>
               <div className="videos-grid">
                 {videoNews.slice(0, 3).map((item) => (
-                  <div key={item.id} className="video-card">
+                  <div key={item.id} className="video-card" onClick={() => setSelectedStory(item)}>
                     <div className="video-thumbnail" style={{ backgroundImage: `url(${resolveMediaUrl(item.cover_image_url)})` }}>
                       <span className="play-icon">▶️</span>
                     </div>
@@ -1020,7 +1020,7 @@ function App() {
                       {selectedStory.video_url.includes('youtube.com') || selectedStory.video_url.includes('youtu.be') ? (
                         <iframe
                           width="100%"
-                          height="400"
+                          height="100%"
                           src={selectedStory.video_url.includes('/embed/') ? selectedStory.video_url : `https://www.youtube.com/embed/${selectedStory.video_url.split('v=')[1]?.substring(0, 11) || selectedStory.video_url.split('.be/')[1]?.substring(0, 11)}`}
                           title="YouTube video player"
                           frameBorder="0"
@@ -1033,7 +1033,7 @@ function App() {
                           controls
                           className="modern-video-player"
                           poster={selectedStory.cover_image_url ? resolveMediaUrl(selectedStory.cover_image_url) : undefined}
-                          style={{ width: '100%', borderRadius: '20px', backgroundColor: '#000', boxShadow: '0 10px 30px rgba(0,0,0,0.3)', maxHeight: '60vh' }}
+                          style={{ width: '100%', borderRadius: '20px', backgroundColor: '#000', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}
                         >
                           <source src={resolveMediaUrl(selectedStory.video_url)} />
                           Your browser does not support the video tag.
