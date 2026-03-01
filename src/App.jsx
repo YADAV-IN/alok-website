@@ -570,15 +570,15 @@ function App() {
   const handleAvatarUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file || !adminToken) return;
-    
+
     setStatus({ state: 'loading', message: 'इमेज अपलोड हो रही है...' });
-    
+
     try {
       // Convert image to base64
       const reader = new FileReader();
       reader.onload = async () => {
         const base64Image = reader.result;
-        
+
         // Update profile with new avatar
         const response = await fetch(`${API_URL}/api/profile`, {
           method: 'PUT',
@@ -593,21 +593,49 @@ function App() {
             avatar_url: base64Image,
           }),
         });
-        
+
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || 'Upload failed');
-        
+
         setAdminProfile((prev) => ({ ...prev, avatar_url: base64Image }));
         setStatus({ state: 'online', message: 'प्रोफाइल फोटो अपडेट हो गई!' });
       };
-      
+
       reader.onerror = () => {
         setStatus({ state: 'error', message: 'इमेज पढ़ने में त्रुटि।' });
       };
-      
+
       reader.readAsDataURL(file);
     } catch (error) {
       setStatus({ state: 'error', message: 'अपलोड असफल रहा।' });
+    }
+  };
+
+  const handleMediaUpload = async (event, field) => {
+    const file = event.target.files?.[0];
+    if (!file || !adminToken) return;
+
+    setStatus({ state: 'loading', message: 'फाइल अपलोड हो रही है...' });
+
+    const formData = new FormData();
+    formData.append('media', file);
+
+    try {
+      const response = await fetch(`${API_URL}/api/uploads/media`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: formData,
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Upload failed');
+
+      setNewsForm((prev) => ({ ...prev, [field]: payload.data.url }));
+      setStatus({ state: 'online', message: 'फाइल सफलतापूर्वक अपलोड हुई।' });
+    } catch (error) {
+      console.error(error);
+      setStatus({ state: 'error', message: 'फाइल अपलोड फेल हो गया।' });
     }
   };
 
@@ -673,9 +701,9 @@ function App() {
   const handleSaveNews = async (event) => {
     event.preventDefault();
     if (!adminToken || !editingNews) return;
-    
+
     setStatus({ state: 'loading', message: 'खबर अपडेट हो रही है...' });
-    
+
     try {
       const tags = newsForm.tags.split(',').map((t) => t.trim()).filter(Boolean);
       const response = await fetch(`${API_URL}/api/news/${editingNews.id}`, {
@@ -689,10 +717,10 @@ function App() {
           tags,
         }),
       });
-      
+
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Update failed');
-      
+
       // Update news list
       setNews((prev) => prev.map((item) => item.id === editingNews.id ? payload.data : item));
       setShowEditModal(false);
@@ -706,17 +734,17 @@ function App() {
   // Delete news handler
   const handleDeleteNews = async (newsId) => {
     if (!adminToken || !confirm('क्या आप इस खबर को हटाना चाहते हैं?')) return;
-    
+
     setStatus({ state: 'loading', message: 'खबर हटाई जा रही है...' });
-    
+
     try {
       const response = await fetch(`${API_URL}/api/news/${newsId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${adminToken}` },
       });
-      
+
       if (!response.ok) throw new Error('Delete failed');
-      
+
       setNews((prev) => prev.filter((item) => item.id !== newsId));
       setStatus({ state: 'online', message: 'खबर हटा दी गई!' });
     } catch (error) {
@@ -728,9 +756,9 @@ function App() {
   const handleUpdateSettings = async (event) => {
     event.preventDefault();
     if (!adminToken) return;
-    
+
     setStatus({ state: 'loading', message: 'सेटिंग्स अपडेट हो रही हैं...' });
-    
+
     try {
       const response = await fetch(`${API_URL}/api/settings`, {
         method: 'PUT',
@@ -740,10 +768,10 @@ function App() {
         },
         body: JSON.stringify(siteSettings),
       });
-      
+
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Update failed');
-      
+
       setSiteSettings(payload.data);
       document.title = payload.data.site_title || 'ALOK - बीजेएमसी न्यूज़';
       setShowSettingsModal(false);
@@ -791,8 +819,8 @@ function App() {
               <p>{siteSettings.site_subtitle || 'बीजेएमसी न्यूज़'}</p>
             </div>
             {adminToken && (
-              <button 
-                className="edit-icon-btn" 
+              <button
+                className="edit-icon-btn"
                 onClick={() => setShowSettingsModal(true)}
                 title="साइट सेटिंग्स बदलें"
               >
@@ -838,7 +866,7 @@ function App() {
           <div className="ticker-track">
             <div className="ticker-content">
               {tickerItems.concat(tickerItems).map((item, index) => (
-                <span 
+                <span
                   key={`${item.id}-${index}`}
                   onClick={() => setSelectedStory(item)}
                   className="ticker-item"
@@ -860,8 +888,8 @@ function App() {
               <div className="story-image" style={{ backgroundImage: `url(${resolveMediaUrl(heroStory.cover_image_url)})` }}>
                 {adminToken && (
                   <div className="featured-edit-actions">
-                    <button 
-                      className="edit-icon-btn" 
+                    <button
+                      className="edit-icon-btn"
                       onClick={(e) => { e.stopPropagation(); handleEditNews(heroStory); }}
                       title="संपादित करें"
                     >
@@ -893,15 +921,15 @@ function App() {
                   <div className="card-image" style={{ backgroundImage: `url(${resolveMediaUrl(item.cover_image_url)})` }}>
                     {adminToken && (
                       <div className="card-edit-actions">
-                        <button 
-                          className="edit-icon-btn" 
+                        <button
+                          className="edit-icon-btn"
                           onClick={(e) => { e.stopPropagation(); handleEditNews(item); }}
                           title="संपादित करें"
                         >
                           ✏️
                         </button>
-                        <button 
-                          className="delete-icon-btn" 
+                        <button
+                          className="delete-icon-btn"
                           onClick={(e) => { e.stopPropagation(); handleDeleteNews(item.id); }}
                           title="हटाएं"
                         >
@@ -975,27 +1003,55 @@ function App() {
           {selectedStory && (
             <section className="story-detail">
               <button className="close-btn" onClick={() => setSelectedStory(null)}>✕</button>
-              <div className="detail-content">
-                <span className="detail-category">{selectedStory.category}</span>
-                <h2>{selectedStory.title}</h2>
-                <div className="detail-meta">
-                  <span>{formatDate(selectedStory.published_at)}</span>
-                  <span>•</span>
-                  <span>{selectedStory.reading_time} मिन पढ़ें</span>
-                </div>
-                {selectedStory.cover_image_url && (
-                  <div className="detail-image" style={{ backgroundImage: `url(${resolveMediaUrl(selectedStory.cover_image_url)})` }}></div>
-                )}
-                <div className="detail-body">
-                  <p>{selectedStory.content}</p>
-                  <div className="detail-summary">
-                    <strong>सारांश:</strong>
-                    <p>{selectedStory.ai_summary}</p>
+              <div className="detail-scroll-area">
+                <div className="detail-content">
+                  <span className="detail-category">{selectedStory.category}</span>
+                  <h2>{selectedStory.title}</h2>
+                  <div className="detail-meta">
+                    <span>{formatDate(selectedStory.published_at)}</span>
+                    <span>•</span>
+                    <span>{selectedStory.reading_time} मिन पढ़ें</span>
                   </div>
-                  <div className="detail-tags">
-                    {(selectedStory.tags || []).map((tag) => (
-                      <span key={tag}>{tag}</span>
-                    ))}
+                  {selectedStory.cover_image_url && !selectedStory.video_url && (
+                    <div className="detail-image" style={{ backgroundImage: `url(${resolveMediaUrl(selectedStory.cover_image_url)})` }}></div>
+                  )}
+                  {selectedStory.video_url && (
+                    <div className="detail-video-container" style={{ marginBottom: '32px' }}>
+                      {selectedStory.video_url.includes('youtube.com') || selectedStory.video_url.includes('youtu.be') ? (
+                        <iframe
+                          width="100%"
+                          height="400"
+                          src={selectedStory.video_url.includes('/embed/') ? selectedStory.video_url : `https://www.youtube.com/embed/${selectedStory.video_url.split('v=')[1]?.substring(0, 11) || selectedStory.video_url.split('.be/')[1]?.substring(0, 11)}`}
+                          title="YouTube video player"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="modern-video-player"
+                        ></iframe>
+                      ) : (
+                        <video
+                          controls
+                          className="modern-video-player"
+                          poster={selectedStory.cover_image_url ? resolveMediaUrl(selectedStory.cover_image_url) : undefined}
+                          style={{ width: '100%', borderRadius: '20px', backgroundColor: '#000', boxShadow: '0 10px 30px rgba(0,0,0,0.3)', maxHeight: '60vh' }}
+                        >
+                          <source src={resolveMediaUrl(selectedStory.video_url)} />
+                          Your browser does not support the video tag.
+                        </video>
+                      )}
+                    </div>
+                  )}
+                  <div className="detail-body">
+                    <p>{selectedStory.content}</p>
+                    <div className="detail-summary">
+                      <strong>सारांश:</strong>
+                      <p>{selectedStory.ai_summary}</p>
+                    </div>
+                    <div className="detail-tags">
+                      {(selectedStory.tags || []).map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1015,8 +1071,8 @@ function App() {
                     <small>{item.views} {t('views', language)}</small>
                   </div>
                   {adminToken && (
-                    <button 
-                      className="edit-icon-btn small" 
+                    <button
+                      className="edit-icon-btn small"
                       onClick={(e) => { e.stopPropagation(); handleEditNews(item); }}
                       title="संपादित करें"
                     >
@@ -1044,6 +1100,191 @@ function App() {
                   </button>
                 ))}
             </div>
+
+            {/* Desktop Admin Panel Inside Sidebar */}
+            {showAdmin && (
+              <div className="admin-panel desktop-view">
+                <div className="admin-header">
+                  <h2>{t('adminPanel', language)}</h2>
+                  <button className="ghost" onClick={() => setShowAdmin(false)}>
+                    {t('close', language)}
+                  </button>
+                </div>
+
+                {!adminToken ? (
+                  <form className="admin-form" onSubmit={handleLogin}>
+                    <h3>{t('login', language)}</h3>
+                    <label>
+                      {t('email', language)}
+                      <input
+                        type="email"
+                        value={loginForm.email}
+                        onChange={(event) =>
+                          setLoginForm((prev) => ({ ...prev, email: event.target.value }))
+                        }
+                        required
+                      />
+                    </label>
+                    <label>
+                      {t('password', language)}
+                      <input
+                        type="password"
+                        value={loginForm.password}
+                        onChange={(event) =>
+                          setLoginForm((prev) => ({ ...prev, password: event.target.value }))
+                        }
+                        required
+                      />
+                    </label>
+                    <button
+                      className="primary"
+                      type="submit"
+                      disabled={loginState.state === 'loading'}
+                    >
+                      {loginState.state === 'loading' ? 'लॉगिन हो रहा है...' : t('login', language)}
+                    </button>
+                    {loginState.message && (
+                      <div className={`login-status ${loginState.state}`} role="status">
+                        {loginState.message}
+                      </div>
+                    )}
+                  </form>
+                ) : (
+                  <div className="admin-content">
+                    <div className="admin-profile">
+                      <div className="profile-card">
+                        <div className="avatar-wrapper">
+                          <img
+                            src={
+                              resolveMediaUrl(adminProfile?.avatar_url) ||
+                              'https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=300&auto=format&fit=crop'
+                            }
+                            alt="Admin"
+                          />
+                          <label className="avatar-change-btn" title={t('changePhoto', language)}>
+                            📷
+                            <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
+                          </label>
+                        </div>
+                        <div>
+                          <h3>{adminProfile?.name || 'ALOK एडमिन'}</h3>
+                          <p>{adminProfile?.email}</p>
+                          <button className="ghost" onClick={handleLogout}>
+                            {t('logout', language)}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <form className="admin-form" onSubmit={handleProfileSave}>
+                      <h3>{t('updateProfile', language)}</h3>
+                      <label>
+                        {t('name', language)}
+                        <input
+                          value={profileForm.name}
+                          onChange={(event) =>
+                            setProfileForm((prev) => ({ ...prev, name: event.target.value }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        {t('email', language)}
+                        <input
+                          type="email"
+                          value={profileForm.email}
+                          onChange={(event) =>
+                            setProfileForm((prev) => ({ ...prev, email: event.target.value }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        {t('bio', language)}
+                        <textarea
+                          rows="3"
+                          value={profileForm.bio}
+                          onChange={(event) =>
+                            setProfileForm((prev) => ({ ...prev, bio: event.target.value }))
+                          }
+                        />
+                      </label>
+                      <button className="primary" type="submit">
+                        {t('save', language)}
+                      </button>
+                    </form>
+
+                    {/* Desktop User Management */}
+                    {adminProfile?.role === 'admin' && (
+                      <>
+                        <div className="admin-form">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3>👥 यूज़र मैनेजमेंट</h3>
+                            <button
+                              className={showUserManagement ? 'secondary' : 'primary'}
+                              onClick={() => setShowUserManagement(!showUserManagement)}
+                              type="button"
+                            >
+                              {showUserManagement ? 'बंद करें' : 'मैनेज करें'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {showUserManagement && (
+                          <div className="user-management-section">
+                            <form className="admin-form" onSubmit={handleUserCreate}>
+                              <h3>➕ नया यूज़र</h3>
+                              <div className="form-row">
+                                <label style={{ flex: 1 }}>
+                                  नाम * <input value={userForm.name} onChange={(e) => setUserForm((prev) => ({ ...prev, name: e.target.value }))} required />
+                                </label>
+                                <label style={{ flex: 1 }}>
+                                  ईमेल * <input type="email" value={userForm.email} onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))} required />
+                                </label>
+                              </div>
+                              <div className="form-row">
+                                <label style={{ flex: 1 }}>
+                                  पासवर्ड * <input type="password" value={userForm.password} onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))} required />
+                                </label>
+                                <label style={{ flex: 1 }}>
+                                  Role *
+                                  <select value={userForm.role} onChange={(e) => setUserForm((prev) => ({ ...prev, role: e.target.value }))}>
+                                    <option value="author">👤 Author</option>
+                                    <option value="editor">✏️ Editor</option>
+                                    <option value="admin">👑 Admin</option>
+                                  </select>
+                                </label>
+                              </div>
+                              <button className="primary" type="submit" style={{ width: '100%' }}>✅ यूज़र जोड़ें</button>
+                            </form>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Desktop Create News */}
+                    <button
+                      className="primary"
+                      style={{ width: '100%', marginTop: '20px' }}
+                      onClick={() => {
+                        setNewsForm({
+                          title: '', category: 'कैंपस', excerpt: '', content: '', tags: '',
+                          cover_image_url: '', gallery_urls: '', video_url: '', audio_url: '',
+                          source: 'ALOK', ai_summary: '', published_at: '', is_featured: false,
+                          is_breaking: false, author_name: 'ALOK Team', author_email: '',
+                          author_twitter: '', author_instagram: '', meta_description: '',
+                          meta_keywords: '', seo_title: '', location: '', coordinates: '',
+                          twitter_url: '', facebook_url: '', instagram_url: '', youtube_url: '',
+                          status: 'draft', priority: 'normal', language: 'hi', expire_at: ''
+                        });
+                        setEditingNews({ id: 'new' });
+                        setShowEditModal(true);
+                      }}
+                    >
+                      📰 नई खबर बनाएं
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </aside>
         )}
       </div>
@@ -1051,10 +1292,8 @@ function App() {
       {/* Mobile Bottom Navigation */}
       {device.isMobile && <MobileBottomNav activePage={activePage} setActivePage={setActivePage} showAdmin={showAdmin} setShowAdmin={setShowAdmin} adminToken={adminToken} />}
 
-      {device.isMobile && <MobileBottomNav activePage={activePage} setActivePage={setActivePage} showAdmin={showAdmin} setShowAdmin={setShowAdmin} adminToken={adminToken} />}
-
-      {showAdmin && (
-        <aside className="admin-panel">
+      {showAdmin && !device.isDesktop && (
+        <aside className="admin-panel mobile-view">
           <div className="admin-header">
             <h2>{t('adminPanel', language)}</h2>
             <button className="ghost" onClick={() => setShowAdmin(false)}>
@@ -1167,9 +1406,9 @@ function App() {
               {adminProfile?.role === 'admin' && (
                 <>
                   <div className="admin-form">
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <h3>👥 यूज़र मैनेजमेंट</h3>
-                      <button 
+                      <button
                         className={showUserManagement ? 'secondary' : 'primary'}
                         onClick={() => setShowUserManagement(!showUserManagement)}
                         type="button"
@@ -1185,7 +1424,7 @@ function App() {
                       <form className="admin-form" onSubmit={handleUserCreate}>
                         <h3>➕ नया यूज़र जोड़ें</h3>
                         <div className="form-row">
-                          <label style={{flex: 1}}>
+                          <label style={{ flex: 1 }}>
                             नाम *
                             <input
                               value={userForm.name}
@@ -1194,7 +1433,7 @@ function App() {
                               placeholder="पूरा नाम"
                             />
                           </label>
-                          <label style={{flex: 1}}>
+                          <label style={{ flex: 1 }}>
                             ईमेल *
                             <input
                               type="email"
@@ -1206,7 +1445,7 @@ function App() {
                           </label>
                         </div>
                         <div className="form-row">
-                          <label style={{flex: 1}}>
+                          <label style={{ flex: 1 }}>
                             पासवर्ड *
                             <input
                               type="password"
@@ -1216,7 +1455,7 @@ function App() {
                               placeholder="मजबूत पासवर्ड"
                             />
                           </label>
-                          <label style={{flex: 1}}>
+                          <label style={{ flex: 1 }}>
                             Role *
                             <select value={userForm.role} onChange={(e) => setUserForm((prev) => ({ ...prev, role: e.target.value }))}>
                               <option value="author">👤 Author (लेखक)</option>
@@ -1234,7 +1473,7 @@ function App() {
                             placeholder="छोटा परिचय..."
                           />
                         </label>
-                        <button className="primary" type="submit" style={{width: '100%'}}>
+                        <button className="primary" type="submit" style={{ width: '100%' }}>
                           ✅ यूज़र जोड़ें
                         </button>
                       </form>
@@ -1260,8 +1499,8 @@ function App() {
                                     <p className="user-email">{user.email}</p>
                                     <div className="user-meta">
                                       <span className={`role-badge role-${user.role}`}>
-                                        {user.role === 'admin' && '👑'} 
-                                        {user.role === 'editor' && '✏️'} 
+                                        {user.role === 'admin' && '👑'}
+                                        {user.role === 'editor' && '✏️'}
                                         {user.role === 'author' && '👤'}
                                         {user.role}
                                       </span>
@@ -1302,23 +1541,23 @@ function App() {
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 {editingUser?.id === user.id && (
                                   <div className="user-edit-form">
                                     <h5>Edit User</h5>
                                     <div className="form-row">
-                                      <label style={{flex: 1}}>
+                                      <label style={{ flex: 1 }}>
                                         नाम
                                         <input
                                           value={editingUser.name}
-                                          onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
+                                          onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
                                         />
                                       </label>
-                                      <label style={{flex: 1}}>
+                                      <label style={{ flex: 1 }}>
                                         Role
-                                        <select 
-                                          value={editingUser.role} 
-                                          onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                                        <select
+                                          value={editingUser.role}
+                                          onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
                                         >
                                           <option value="author">Author</option>
                                           <option value="editor">Editor</option>
@@ -1327,27 +1566,27 @@ function App() {
                                       </label>
                                     </div>
                                     <div className="form-row">
-                                      <label style={{flex: 1}}>
+                                      <label style={{ flex: 1 }}>
                                         Status
-                                        <select 
-                                          value={editingUser.status} 
-                                          onChange={(e) => setEditingUser({...editingUser, status: e.target.value})}
+                                        <select
+                                          value={editingUser.status}
+                                          onChange={(e) => setEditingUser({ ...editingUser, status: e.target.value })}
                                         >
                                           <option value="active">Active</option>
                                           <option value="inactive">Inactive</option>
                                         </select>
                                       </label>
-                                      <label style={{flex: 1}}>
+                                      <label style={{ flex: 1 }}>
                                         नया पासवर्ड (optional)
                                         <input
                                           type="password"
                                           placeholder="छोड़ें अगर नहीं बदलना"
                                           value={adminPasswords[user.id] || ''}
-                                          onChange={(e) => setAdminPasswords({...adminPasswords, [user.id]: e.target.value})}
+                                          onChange={(e) => setAdminPasswords({ ...adminPasswords, [user.id]: e.target.value })}
                                         />
                                       </label>
                                     </div>
-                                    <div className="form-row" style={{gap: '8px'}}>
+                                    <div className="form-row" style={{ gap: '8px' }}>
                                       <button
                                         className="primary"
                                         onClick={() => {
@@ -1367,7 +1606,7 @@ function App() {
                                         className="secondary"
                                         onClick={() => {
                                           setEditingUser(null);
-                                          setAdminPasswords({...adminPasswords, [user.id]: ''});
+                                          setAdminPasswords({ ...adminPasswords, [user.id]: '' });
                                         }}
                                       >
                                         ❌ कैंसल
@@ -1387,7 +1626,7 @@ function App() {
 
               <form className="admin-form advanced-form" onSubmit={handleNewsCreate}>
                 <h3>📰 नई खबर बनाएं (Advanced)</h3>
-                
+
                 {/* BASIC INFORMATION */}
                 <div className="form-section">
                   <h4>📝 मुख्य जानकारी</h4>
@@ -1396,7 +1635,7 @@ function App() {
                     <input value={newsForm.title} onChange={(e) => setNewsForm((prev) => ({ ...prev, title: e.target.value }))} required placeholder="खबर का शीर्षक..." />
                   </label>
                   <div className="form-row">
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       कैटेगरी *
                       <select value={newsForm.category} onChange={(e) => setNewsForm((prev) => ({ ...prev, category: e.target.value }))}>
                         <option value="कैंपस">कैंपस</option>
@@ -1410,7 +1649,7 @@ function App() {
                         <option value="मनोरंजन">मनोरंजन</option>
                       </select>
                     </label>
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       भाषा
                       <select value={newsForm.language} onChange={(e) => setNewsForm((prev) => ({ ...prev, language: e.target.value }))}>
                         <option value="hi">हिंदी</option>
@@ -1436,16 +1675,42 @@ function App() {
                 <div className="form-section">
                   <h4>🎬 मीडिया फाइल्स</h4>
                   <label>
-                    कवर इमेज URL
-                    <input value={newsForm.cover_image_url} onChange={(e) => setNewsForm((prev) => ({ ...prev, cover_image_url: e.target.value }))} placeholder="https://example.com/image.jpg" />
+                    कवर इमेज (Upload or URL)
+                    <div className="upload-input-group" style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleMediaUpload(e, 'cover_image_url')}
+                        style={{ padding: '8px' }}
+                      />
+                    </div>
+                    <input
+                      value={newsForm.cover_image_url}
+                      onChange={(e) => setNewsForm((prev) => ({ ...prev, cover_image_url: e.target.value }))}
+                      placeholder="या फिर इमेज URL पेस्ट करें (https://...)"
+                      style={{ marginTop: '8px' }}
+                    />
                   </label>
                   <label>
                     गैलरी URLs (comma separated)
                     <textarea rows="2" value={newsForm.gallery_urls} onChange={(e) => setNewsForm((prev) => ({ ...prev, gallery_urls: e.target.value }))} placeholder="https://img1.jpg, https://img2.jpg" />
                   </label>
                   <label>
-                    वीडियो URL (YouTube/Vimeo)
-                    <input value={newsForm.video_url} onChange={(e) => setNewsForm((prev) => ({ ...prev, video_url: e.target.value }))} placeholder="https://youtube.com/watch?v=..." />
+                    वीडियो (Upload MP4 or URL)
+                    <div className="upload-input-group" style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm"
+                        onChange={(e) => handleMediaUpload(e, 'video_url')}
+                        style={{ padding: '8px' }}
+                      />
+                    </div>
+                    <input
+                      value={newsForm.video_url}
+                      onChange={(e) => setNewsForm((prev) => ({ ...prev, video_url: e.target.value }))}
+                      placeholder="या फिर YouTube/Vimeo URL पेस्ट करें"
+                      style={{ marginTop: '8px' }}
+                    />
                   </label>
                   <label>
                     ऑडियो URL
@@ -1457,21 +1722,21 @@ function App() {
                 <div className="form-section">
                   <h4>✍️ लेखक जानकारी</h4>
                   <div className="form-row">
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       लेखक नाम
                       <input value={newsForm.author_name} onChange={(e) => setNewsForm((prev) => ({ ...prev, author_name: e.target.value }))} placeholder="ALOK Team" />
                     </label>
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       लेखक ईमेल
                       <input type="email" value={newsForm.author_email} onChange={(e) => setNewsForm((prev) => ({ ...prev, author_email: e.target.value }))} placeholder="author@alok.com" />
                     </label>
                   </div>
                   <div className="form-row">
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       🐦 Twitter Handle
                       <input value={newsForm.author_twitter} onChange={(e) => setNewsForm((prev) => ({ ...prev, author_twitter: e.target.value }))} placeholder="@username" />
                     </label>
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       📷 Instagram Handle
                       <input value={newsForm.author_instagram} onChange={(e) => setNewsForm((prev) => ({ ...prev, author_instagram: e.target.value }))} placeholder="@username" />
                     </label>
@@ -1507,11 +1772,11 @@ function App() {
                 <div className="form-section">
                   <h4>📍 स्थान</h4>
                   <div className="form-row">
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       Location/City
                       <input value={newsForm.location} onChange={(e) => setNewsForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="नई दिल्ली, भारत" />
                     </label>
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       Coordinates (lat,long)
                       <input value={newsForm.coordinates} onChange={(e) => setNewsForm((prev) => ({ ...prev, coordinates: e.target.value }))} placeholder="28.6139, 77.2090" />
                     </label>
@@ -1543,7 +1808,7 @@ function App() {
                 <div className="form-section">
                   <h4>⚙️ पब्लिशिंग सेटिंग्स</h4>
                   <div className="form-row">
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       स्टेटस
                       <select value={newsForm.status} onChange={(e) => setNewsForm((prev) => ({ ...prev, status: e.target.value }))}>
                         <option value="draft">Draft (मसौदा)</option>
@@ -1552,7 +1817,7 @@ function App() {
                         <option value="archived">Archived (संग्रहित)</option>
                       </select>
                     </label>
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       प्राथमिकता
                       <select value={newsForm.priority} onChange={(e) => setNewsForm((prev) => ({ ...prev, priority: e.target.value }))}>
                         <option value="low">Low (कम)</option>
@@ -1563,16 +1828,16 @@ function App() {
                     </label>
                   </div>
                   <div className="form-row">
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       पब्लिश टाइम (ISO)
                       <input type="datetime-local" value={newsForm.published_at ? newsForm.published_at.slice(0, 16) : ''} onChange={(e) => setNewsForm((prev) => ({ ...prev, published_at: e.target.value ? new Date(e.target.value).toISOString() : '' }))} />
                     </label>
-                    <label style={{flex: 1}}>
+                    <label style={{ flex: 1 }}>
                       एक्सपायरी टाइम
                       <input type="datetime-local" value={newsForm.expire_at ? newsForm.expire_at.slice(0, 16) : ''} onChange={(e) => setNewsForm((prev) => ({ ...prev, expire_at: e.target.value ? new Date(e.target.value).toISOString() : '' }))} />
                     </label>
                   </div>
-                  <div className="form-row" style={{gap: '16px'}}>
+                  <div className="form-row" style={{ gap: '16px' }}>
                     <label className="switch">
                       <input type="checkbox" checked={newsForm.is_featured} onChange={(e) => setNewsForm((prev) => ({ ...prev, is_featured: e.target.checked }))} />
                       <span>⭐ फ़ीचर्ड रखें</span>
@@ -1584,7 +1849,7 @@ function App() {
                   </div>
                 </div>
 
-                <button className="primary" type="submit" style={{width: '100%', padding: '14px', fontSize: '16px', fontWeight: '600'}}>
+                <button className="primary" type="submit" style={{ width: '100%', padding: '14px', fontSize: '16px', fontWeight: '600' }}>
                   ✅ खबर सेव करें
                 </button>
               </form>
@@ -1608,7 +1873,7 @@ function App() {
                   <input required value={newsForm.title} onChange={(e) => setNewsForm((prev) => ({ ...prev, title: e.target.value }))} />
                 </label>
                 <div className="form-row">
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     कैटेगरी *
                     <select value={newsForm.category} onChange={(e) => setNewsForm((prev) => ({ ...prev, category: e.target.value }))}>
                       <option value="कैंपस">कैंपस</option>
@@ -1622,7 +1887,7 @@ function App() {
                       <option value="मनोरंजन">मनोरंजन</option>
                     </select>
                   </label>
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     भाषा
                     <select value={newsForm.language} onChange={(e) => setNewsForm((prev) => ({ ...prev, language: e.target.value }))}>
                       <option value="hi">हिंदी</option>
@@ -1669,21 +1934,21 @@ function App() {
               <div className="form-section">
                 <h4>✍️ लेखक</h4>
                 <div className="form-row">
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     लेखक नाम
                     <input value={newsForm.author_name} onChange={(e) => setNewsForm((prev) => ({ ...prev, author_name: e.target.value }))} />
                   </label>
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     लेखक ईमेल
                     <input type="email" value={newsForm.author_email} onChange={(e) => setNewsForm((prev) => ({ ...prev, author_email: e.target.value }))} />
                   </label>
                 </div>
                 <div className="form-row">
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     🐦 Twitter
                     <input value={newsForm.author_twitter} onChange={(e) => setNewsForm((prev) => ({ ...prev, author_twitter: e.target.value }))} />
                   </label>
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     📷 Instagram
                     <input value={newsForm.author_instagram} onChange={(e) => setNewsForm((prev) => ({ ...prev, author_instagram: e.target.value }))} />
                   </label>
@@ -1719,11 +1984,11 @@ function App() {
               <div className="form-section">
                 <h4>📍 स्थान</h4>
                 <div className="form-row">
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     Location
                     <input value={newsForm.location} onChange={(e) => setNewsForm((prev) => ({ ...prev, location: e.target.value }))} />
                   </label>
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     Coordinates
                     <input value={newsForm.coordinates} onChange={(e) => setNewsForm((prev) => ({ ...prev, coordinates: e.target.value }))} />
                   </label>
@@ -1755,7 +2020,7 @@ function App() {
               <div className="form-section">
                 <h4>⚙️ पब्लिशिंग</h4>
                 <div className="form-row">
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     स्टेटस
                     <select value={newsForm.status} onChange={(e) => setNewsForm((prev) => ({ ...prev, status: e.target.value }))}>
                       <option value="draft">Draft</option>
@@ -1764,7 +2029,7 @@ function App() {
                       <option value="archived">Archived</option>
                     </select>
                   </label>
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     प्राथमिकता
                     <select value={newsForm.priority} onChange={(e) => setNewsForm((prev) => ({ ...prev, priority: e.target.value }))}>
                       <option value="low">Low</option>
@@ -1775,16 +2040,16 @@ function App() {
                   </label>
                 </div>
                 <div className="form-row">
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     पब्लिश टाइम
                     <input type="datetime-local" value={newsForm.published_at ? newsForm.published_at.slice(0, 16) : ''} onChange={(e) => setNewsForm((prev) => ({ ...prev, published_at: e.target.value ? new Date(e.target.value).toISOString() : '' }))} />
                   </label>
-                  <label style={{flex: 1}}>
+                  <label style={{ flex: 1 }}>
                     एक्सपायरी टाइम
                     <input type="datetime-local" value={newsForm.expire_at ? newsForm.expire_at.slice(0, 16) : ''} onChange={(e) => setNewsForm((prev) => ({ ...prev, expire_at: e.target.value ? new Date(e.target.value).toISOString() : '' }))} />
                   </label>
                 </div>
-                <div className="form-row" style={{gap: '16px'}}>
+                <div className="form-row" style={{ gap: '16px' }}>
                   <label className="switch">
                     <input type="checkbox" checked={newsForm.is_featured} onChange={(e) => setNewsForm((prev) => ({ ...prev, is_featured: e.target.checked }))} />
                     <span>फ़ीचर्ड रखें</span>
@@ -1795,13 +2060,13 @@ function App() {
                   </label>
                 </div>
               </div>
-              
+
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button className="btn-primary" type="submit">
                   सेव करें
                 </button>
-                <button 
-                  className="btn-secondary" 
+                <button
+                  className="btn-secondary"
                   type="button"
                   onClick={() => setShowEditModal(false)}
                 >
@@ -1857,8 +2122,8 @@ function App() {
                 <button className="btn-primary" type="submit">
                   सेटिंग्स सेव करें
                 </button>
-                <button 
-                  className="btn-secondary" 
+                <button
+                  className="btn-secondary"
                   type="button"
                   onClick={() => setShowSettingsModal(false)}
                 >

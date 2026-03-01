@@ -32,10 +32,14 @@ const ensureDir = (dir) => {
 ensureDir(UPLOAD_DIR);
 ensureDir(path.join(UPLOAD_DIR, 'avatars'));
 ensureDir(path.join(UPLOAD_DIR, 'covers'));
+ensureDir(path.join(UPLOAD_DIR, 'media'));
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const folder = file.fieldname === 'avatar' ? 'avatars' : 'covers';
+    let folder = 'covers';
+    if (file.fieldname === 'avatar') folder = 'avatars';
+    else if (file.fieldname === 'media') folder = 'media';
+    
     cb(null, path.join(UPLOAD_DIR, folder));
   },
   filename: (req, file, cb) => {
@@ -567,6 +571,14 @@ app.post('/api/uploads/cover', requireAuth, upload.single('cover'), async (req, 
   }
   const coverUrl = `/uploads/covers/${req.file.filename}`;
   return res.json({ data: { url: coverUrl } });
+});
+
+app.post('/api/uploads/media', requireAuth, upload.single('media'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No media file uploaded.' });
+  }
+  const mediaUrl = `/uploads/media/${req.file.filename}`;
+  return res.json({ data: { url: mediaUrl } });
 });
 
 // Site Settings endpoints

@@ -145,8 +145,8 @@ async function testAPI() {
 
     fieldsToCheck.forEach(field => {
       const status = field.value ? '✅' : '❌';
-      const displayValue = field.value ? 
-        (field.value.length > 50 ? field.value.substring(0, 50) + '...' : field.value) : 
+      const displayValue = field.value ?
+        (field.value.length > 50 ? field.value.substring(0, 50) + '...' : field.value) :
         'NOT SET';
       log('yellow', `  ${status} ${field.name}: ${displayValue}`);
     });
@@ -181,7 +181,7 @@ async function testAPI() {
     log('blue', '\n4️⃣ Testing GET by slug...');
     const getResponse = await fetch(`${API_URL}/api/news/${createdNews.slug}`);
     const { data: fetchedNews } = await getResponse.json();
-    
+
     if (fetchedNews.id === createdNews.id) {
       log('green', `✅ News fetched successfully!`);
     }
@@ -211,8 +211,7 @@ async function testAPI() {
   }
 }
 
-// Run tests
-const readline = require('readline');
+import readline from 'readline';
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout

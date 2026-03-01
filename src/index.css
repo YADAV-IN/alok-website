@@ -1,14 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600&family=Playfair+Display:wght@400;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #0b0f16;
-  --text-primary: #f4f6fb;
-  --text-muted: rgba(244, 246, 251, 0.68);
-  --accent: #d4a14a;
-  --font-primary: 'Space Grotesk', sans-serif;
-  --font-display: 'Playfair Display', serif;
-  --font-mono: 'Chakra Petch', sans-serif;
+  --bg: #0d1117;
+  --bg-card: #161b22;
+  --bg-card-hover: #21262d;
+  --text-primary: #c9d1d9;
+  --text-muted: #8b949e;
+  --accent: #e3b341;
+  --accent-gradient: linear-gradient(135deg, #e3b341, #f1e05a);
+  --font-primary: 'Plus Jakarta Sans', sans-serif;
+  --font-display: 'Outfit', sans-serif;
 }
+
 
 * {
   box-sizing: border-box;
@@ -25,9 +28,11 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-primary);
-  background: radial-gradient(circle at 15% 20%, rgba(212, 161, 74, 0.14), transparent 40%),
-    radial-gradient(circle at 80% 10%, rgba(61, 120, 202, 0.12), transparent 45%),
-    var(--bg);
+  background: var(--bg);
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(227, 179, 65, 0.08), transparent 40%),
+    radial-gradient(circle at 80% 10%, rgba(241, 224, 90, 0.05), transparent 45%),
+    radial-gradient(circle at 50% 80%, rgba(227, 179, 65, 0.04), transparent 50%);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
