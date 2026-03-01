@@ -39,7 +39,7 @@ const storage = multer.diskStorage({
     let folder = 'covers';
     if (file.fieldname === 'avatar') folder = 'avatars';
     else if (file.fieldname === 'media') folder = 'media';
-    
+
     cb(null, path.join(UPLOAD_DIR, folder));
   },
   filename: (req, file, cb) => {
@@ -110,11 +110,11 @@ app.post('/api/auth/login', async (req, res) => {
   if (!isMatch) {
     return res.status(401).json({ error: 'Invalid credentials.' });
   }
-  
+
   // Update last login
   const now = new Date().toISOString();
   await db.run('UPDATE admins SET last_login = ? WHERE id = ?', [now, admin.id]);
-  
+
   const token = signToken(admin.id);
   return res.json({
     data: {
@@ -136,7 +136,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/admins', requireAuth, async (req, res) => {
   const db = await getDb();
   const currentUser = await db.get('SELECT role FROM admins WHERE id = ?', [req.adminId]);
-  
+
   // Only admins can create users
   if (currentUser.role !== 'admin') {
     return res.status(403).json({ error: 'Permission denied. Admin access required.' });
@@ -146,12 +146,12 @@ app.post('/api/admins', requireAuth, async (req, res) => {
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email, and password required.' });
   }
-  
+
   const existing = await db.get('SELECT id FROM admins WHERE email = ?', [email]);
   if (existing) {
     return res.status(409).json({ error: 'Email already exists.' });
   }
-  
+
   const passwordHash = await bcrypt.hash(password, 10);
   const now = new Date().toISOString();
   const result = await db.run(
@@ -159,7 +159,7 @@ app.post('/api/admins', requireAuth, async (req, res) => {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [name, email, passwordHash, role, 'active', bio, '', now, now]
   );
-  
+
   const admin = await db.get('SELECT id, name, email, role, status, bio, avatar_url, created_at FROM admins WHERE id = ?', [result.lastID]);
   return res.status(201).json({ data: admin });
 });
@@ -182,10 +182,10 @@ app.get('/api/admins', requireAuth, async (req, res) => {
 app.put('/api/admins/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   const db = await getDb();
-  
+
   const currentUser = await db.get('SELECT role FROM admins WHERE id = ?', [req.adminId]);
   const targetUser = await db.get('SELECT * FROM admins WHERE id = ?', [id]);
-  
+
   if (!targetUser) {
     return res.status(404).json({ error: 'User not found.' });
   }
@@ -197,7 +197,7 @@ app.put('/api/admins/:id', requireAuth, async (req, res) => {
 
   const { name, email, role, status, bio } = req.body || {};
   const now = new Date().toISOString();
-  
+
   // Non-admins cannot change role or status
   if (currentUser.role !== 'admin' && (role || status)) {
     return res.status(403).json({ error: 'Cannot change role or status.' });
@@ -223,14 +223,14 @@ app.put('/api/admins/:id', requireAuth, async (req, res) => {
 app.put('/api/admins/:id/password', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { password } = req.body || {};
-  
+
   if (!password) {
     return res.status(400).json({ error: 'Password required.' });
   }
-  
+
   const db = await getDb();
   const currentUser = await db.get('SELECT role FROM admins WHERE id = ?', [req.adminId]);
-  
+
   // Only admins can change other users' passwords
   if (currentUser.role !== 'admin' && req.adminId !== parseInt(id)) {
     return res.status(403).json({ error: 'Permission denied.' });
@@ -249,29 +249,29 @@ app.put('/api/admins/:id/password', requireAuth, async (req, res) => {
 app.delete('/api/admins/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   const db = await getDb();
-  
+
   const currentUser = await db.get('SELECT role FROM admins WHERE id = ?', [req.adminId]);
-  
+
   // Only admins can delete users
   if (currentUser.role !== 'admin') {
     return res.status(403).json({ error: 'Permission denied. Admin access required.' });
   }
-  
+
   // Prevent deleting yourself
   if (req.adminId === parseInt(id)) {
     return res.status(400).json({ error: 'Cannot delete your own account.' });
   }
-  
+
   const targetUser = await db.get('SELECT * FROM admins WHERE id = ?', [id]);
   if (!targetUser) {
     return res.status(404).json({ error: 'User not found.' });
   }
-  
+
   // Prevent deleting the primary admin (id = 1)
   if (parseInt(id) === 1) {
     return res.status(400).json({ error: 'Cannot delete primary admin account.' });
   }
-  
+
   await db.run('DELETE FROM admins WHERE id = ?', [id]);
   return res.json({ data: { id: Number(id), message: 'User deleted successfully' } });
 });
@@ -427,59 +427,64 @@ app.post('/api/news', requireAuth, async (req, res) => {
   const now = new Date().toISOString();
   const readingTime = getReadingTime(content);
 
-  const result = await db.run(
-    `INSERT INTO news
-      (title, slug, excerpt, content, category, tags, cover_image_url, gallery_urls, video_url, audio_url, source, ai_summary,
-       author_name, author_email, author_twitter, author_instagram, meta_description, meta_keywords, seo_title,
-       location, coordinates, twitter_url, facebook_url, instagram_url, youtube_url,
-       published_at, reading_time, is_featured, is_breaking, status, priority, language, expire_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      title,
-      slug,
-      excerpt,
-      content,
-      category || 'कैंपस',
-      JSON.stringify(tags),
-      cover_image_url,
-      gallery_urls,
-      video_url,
-      audio_url,
-      source,
-      ai_summary,
-      author_name,
-      author_email,
-      author_twitter,
-      author_instagram,
-      meta_description,
-      meta_keywords,
-      seo_title,
-      location,
-      coordinates,
-      twitter_url,
-      facebook_url,
-      instagram_url,
-      youtube_url,
-      published_at || now,
-      readingTime,
-      is_featured ? 1 : 0,
-      is_breaking ? 1 : 0,
-      status || 'published',
-      priority || 'normal',
-      language || 'hi',
-      expire_at,
-      now,
-      now,
-    ]
-  );
+  try {
+    const result = await db.run(
+      `INSERT INTO news
+        (title, slug, excerpt, content, category, tags, cover_image_url, gallery_urls, video_url, audio_url, source, ai_summary,
+         author_name, author_email, author_twitter, author_instagram, meta_description, meta_keywords, seo_title,
+         location, coordinates, twitter_url, facebook_url, instagram_url, youtube_url,
+         published_at, reading_time, is_featured, is_breaking, status, priority, language, expire_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        title,
+        slug,
+        excerpt,
+        content,
+        category || 'कैंपस',
+        JSON.stringify(tags),
+        cover_image_url,
+        gallery_urls,
+        video_url,
+        audio_url,
+        source,
+        ai_summary,
+        author_name,
+        author_email,
+        author_twitter,
+        author_instagram,
+        meta_description,
+        meta_keywords,
+        seo_title,
+        location,
+        coordinates,
+        twitter_url,
+        facebook_url,
+        instagram_url,
+        youtube_url,
+        published_at || now,
+        readingTime,
+        is_featured ? 1 : 0,
+        is_breaking ? 1 : 0,
+        status || 'published',
+        priority || 'normal',
+        language || 'hi',
+        expire_at,
+        now,
+        now,
+      ]
+    );
 
-  const created = await db.get('SELECT * FROM news WHERE id = ?', [result.lastID]);
-  return res.status(201).json({
-    data: {
-      ...created,
-      tags: created.tags ? JSON.parse(created.tags) : [],
-    },
-  });
+    const created = await db.get('SELECT * FROM news WHERE id = ?', [result.lastID]);
+    return res.status(201).json({
+      data: {
+        ...created,
+        tags: created.tags ? JSON.parse(created.tags) : [],
+      },
+    });
+  } catch (error) {
+    console.error("Error inserting news:", error);
+    return res.status(500).json({ error: 'Database error: ' + error.message });
+  }
 });
 
 app.put('/api/news/:id', requireAuth, async (req, res) => {
@@ -542,7 +547,7 @@ app.put('/api/news/:id', requireAuth, async (req, res) => {
       payload.meta_description, payload.meta_keywords, payload.seo_title,
       payload.location, payload.coordinates,
       payload.twitter_url, payload.facebook_url, payload.instagram_url, payload.youtube_url,
-      payload.published_at, getReadingTime(payload.content), 
+      payload.published_at, getReadingTime(payload.content),
       payload.is_featured ? 1 : 0, payload.is_breaking ? 1 : 0,
       payload.status, payload.priority, payload.language, payload.expire_at,
       updatedAt, id,
@@ -591,7 +596,7 @@ app.get('/api/settings', async (req, res) => {
 app.put('/api/settings', requireAuth, async (req, res) => {
   const { site_name, site_subtitle, site_title, site_description } = req.body || {};
   const db = await getDb();
-  
+
   const existing = await db.get('SELECT * FROM site_settings ORDER BY id DESC LIMIT 1');
   if (!existing) {
     // Create if doesn't exist
@@ -622,7 +627,7 @@ app.put('/api/settings', requireAuth, async (req, res) => {
       ]
     );
   }
-  
+
   const settings = await db.get('SELECT * FROM site_settings ORDER BY id DESC LIMIT 1');
   return res.json({ data: settings });
 });

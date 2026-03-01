@@ -60,7 +60,7 @@ export const initDb = async () => {
       updated_at TEXT NOT NULL
     );
   `);
-  
+
   await db.exec(`
     CREATE TABLE IF NOT EXISTS site_settings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +88,7 @@ export const initDb = async () => {
   try {
     const adminTableInfo = await db.all('PRAGMA table_info(admins)');
     const adminColumns = adminTableInfo.map(col => col.name);
-    
+
     if (!adminColumns.includes('role')) {
       await db.exec('ALTER TABLE admins ADD COLUMN role TEXT DEFAULT \'author\'');
       console.log('✅ Added role column to admins table');
@@ -113,7 +113,7 @@ export const initDb = async () => {
   try {
     const tableInfo = await db.all('PRAGMA table_info(news)');
     const columns = tableInfo.map(col => col.name);
-    
+
     const newColumns = [
       { name: 'gallery_urls', type: 'TEXT', default: null },
       { name: 'audio_url', type: 'TEXT', default: null },
@@ -170,17 +170,8 @@ export const initDb = async () => {
       ]
     );
     console.log('✅ Primary admin created:', defaultEmail);
-  } else {
-    // Enforce primary admin credentials and role
-    const passwordHash = await bcrypt.hash(defaultPassword, 10);
-    const now = new Date().toISOString();
-    await db.run(
-      'UPDATE admins SET name = ?, email = ?, password_hash = ?, role = \'admin\', status = \'active\', updated_at = ? WHERE id = 1',
-      [defaultName, defaultEmail, passwordHash, now]
-    );
-    console.log('✅ Primary admin credentials updated');
   }
-  
+
   const settingsCount = await db.get('SELECT COUNT(*) as count FROM site_settings');
   if (settingsCount.count === 0) {
     await db.run(
