@@ -234,12 +234,12 @@ function App() {
         const list = payload.data || [];
         setNews(list);
         setFeatured(list.filter((item) => item.is_featured));
-        setSelectedStory(list[0] || null);
+        setSelectedStory(null);
         setStatus({ state: 'online', message: 'डेटा कनेक्शन स्थिर है।' });
       } catch (error) {
         setNews(demoNews);
         setFeatured(demoNews.filter((item) => item.is_featured));
-        setSelectedStory(demoNews[0]);
+        setSelectedStory(null);
         setStatus({ state: 'offline', message: 'लोकल डेमो डेटा चल रहा है।' });
       }
     };
