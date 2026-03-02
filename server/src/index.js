@@ -84,188 +84,243 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password required.' });
-  }
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required.' });
+    }
 
-  const admin = await Admin.findOne({ email });
-  if (!admin) {
-    return res.status(401).json({ error: 'Invalid credentials.' });
-  }
-  if (!['admin'].includes(admin.role) && admin.email !== process.env.ADMIN_EMAIL) {
-    return res.status(403).json({ error: 'Only primary admin can log in.' });
-  }
-  if (admin.status !== 'active') {
-    return res.status(403).json({ error: 'Account is inactive. Contact administrator.' });
-  }
+    const admin = await Admin.findOne({ email });
+    if (!admin) {
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
+    if (!['admin'].includes(admin.role) && admin.email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Only primary admin can log in.' });
+    }
+    if (admin.status !== 'active') {
+      return res.status(403).json({ error: 'Account is inactive. Contact administrator.' });
+    }
 
-  const isMatch = await bcrypt.compare(password, admin.password_hash);
-  if (!isMatch) {
-    return res.status(401).json({ error: 'Invalid credentials.' });
+    const isMatch = await bcrypt.compare(password, admin.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
+
+    admin.last_login = new Date();
+    await admin.save();
+
+    const token = signToken(admin._id.toString());
+    return res.json({
+      data: {
+        token,
+        profile: admin.toJSON(),
+      },
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({ error: 'Server error during login. Please try again.' });
   }
-
-  admin.last_login = new Date();
-  await admin.save();
-
-  const token = signToken(admin._id.toString());
-  return res.json({
-    data: {
-      token,
-      profile: admin.toJSON(),
-    },
-  });
 });
 
 app.post('/api/admins', requireAuth, async (req, res) => {
-  const currentUser = await Admin.findById(req.adminId);
-  if (currentUser.role !== 'admin') {
-    return res.status(403).json({ error: 'Permission denied. Admin access required.' });
+  try {
+    const currentUser = await Admin.findById(req.adminId);
+    if (currentUser.role !== 'admin') {
+      return res.status(403).json({ error: 'Permission denied. Admin access required.' });
+    }
+
+    const { name, email, password, role = 'author', bio = '' } = req.body || {};
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password required.' });
+    }
+
+    const existing = await Admin.findOne({ email });
+    if (existing) {
+      return res.status(409).json({ error: 'Email already exists.' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+    const admin = await Admin.create({
+      name, email, password_hash, role, status: 'active', bio, avatar_url: ''
+    });
+
+    return res.status(201).json({ data: admin.toJSON() });
+  } catch (error) {
+    console.error('Create admin error:', error);
+    return res.status(500).json({ error: 'Server error while creating admin.' });
   }
-
-  const { name, email, password, role = 'author', bio = '' } = req.body || {};
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password required.' });
-  }
-
-  const existing = await Admin.findOne({ email });
-  if (existing) {
-    return res.status(409).json({ error: 'Email already exists.' });
-  }
-
-  const password_hash = await bcrypt.hash(password, 10);
-  const admin = await Admin.create({
-    name, email, password_hash, role, status: 'active', bio, avatar_url: ''
-  });
-
-  return res.status(201).json({ data: admin.toJSON() });
 });
 
 app.get('/api/admins', requireAuth, async (req, res) => {
-  const admins = await Admin.find().sort({ role: 1, created_at: -1 });
-  return res.json({ data: admins.map(a => a.toJSON()) });
+  try {
+    const admins = await Admin.find().sort({ role: 1, created_at: -1 });
+    return res.json({ data: admins.map(a => a.toJSON()) });
+  } catch (error) {
+    console.error('List admins error:', error);
+    return res.status(500).json({ error: 'Server error while fetching admins.' });
+  }
 });
 
 app.put('/api/admins/:id', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  const currentUser = await Admin.findById(req.adminId);
-  const targetUser = await Admin.findById(id);
+  try {
+    const { id } = req.params;
+    const currentUser = await Admin.findById(req.adminId);
+    const targetUser = await Admin.findById(id);
 
-  if (!targetUser) return res.status(404).json({ error: 'User not found.' });
+    if (!targetUser) return res.status(404).json({ error: 'User not found.' });
 
-  if (currentUser.role !== 'admin' && req.adminId !== id) {
-    return res.status(403).json({ error: 'Permission denied.' });
+    if (currentUser.role !== 'admin' && req.adminId !== id) {
+      return res.status(403).json({ error: 'Permission denied.' });
+    }
+
+    const { name, email, role, status, bio } = req.body || {};
+
+    if (currentUser.role !== 'admin' && (role || status)) {
+      return res.status(403).json({ error: 'Cannot change role or status.' });
+    }
+
+    if (name) targetUser.name = name;
+    if (email) targetUser.email = email;
+    if (role) targetUser.role = role;
+    if (status) targetUser.status = status;
+    if (bio !== undefined) targetUser.bio = bio;
+
+    await targetUser.save();
+    return res.json({ data: targetUser.toJSON() });
+  } catch (error) {
+    console.error('Update admin error:', error);
+    return res.status(500).json({ error: 'Server error while updating admin.' });
   }
-
-  const { name, email, role, status, bio } = req.body || {};
-
-  if (currentUser.role !== 'admin' && (role || status)) {
-    return res.status(403).json({ error: 'Cannot change role or status.' });
-  }
-
-  if (name) targetUser.name = name;
-  if (email) targetUser.email = email;
-  if (role) targetUser.role = role;
-  if (status) targetUser.status = status;
-  if (bio !== undefined) targetUser.bio = bio;
-
-  await targetUser.save();
-  return res.json({ data: targetUser.toJSON() });
 });
 
 app.put('/api/admins/:id/password', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  const { password } = req.body || {};
-  if (!password) return res.status(400).json({ error: 'Password required.' });
+  try {
+    const { id } = req.params;
+    const { password } = req.body || {};
+    if (!password) return res.status(400).json({ error: 'Password required.' });
 
-  const currentUser = await Admin.findById(req.adminId);
+    const currentUser = await Admin.findById(req.adminId);
 
-  if (currentUser.role !== 'admin' && req.adminId !== id) {
-    return res.status(403).json({ error: 'Permission denied.' });
+    if (currentUser.role !== 'admin' && req.adminId !== id) {
+      return res.status(403).json({ error: 'Permission denied.' });
+    }
+
+    const targetUser = await Admin.findById(id);
+    if (!targetUser) return res.status(404).json({ error: 'User not found.' });
+
+    targetUser.password_hash = await bcrypt.hash(password, 10);
+    await targetUser.save();
+
+    return res.json({ data: { id, message: 'Password updated successfully' } });
+  } catch (error) {
+    console.error('Update password error:', error);
+    return res.status(500).json({ error: 'Server error while updating password.' });
   }
-
-  const targetUser = await Admin.findById(id);
-  if (!targetUser) return res.status(404).json({ error: 'User not found.' });
-
-  targetUser.password_hash = await bcrypt.hash(password, 10);
-  await targetUser.save();
-
-  return res.json({ data: { id, message: 'Password updated successfully' } });
 });
 
 app.delete('/api/admins/:id', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  const currentUser = await Admin.findById(req.adminId);
+  try {
+    const { id } = req.params;
+    const currentUser = await Admin.findById(req.adminId);
 
-  if (currentUser.role !== 'admin') {
-    return res.status(403).json({ error: 'Permission denied. Admin access required.' });
+    if (currentUser.role !== 'admin') {
+      return res.status(403).json({ error: 'Permission denied. Admin access required.' });
+    }
+
+    if (req.adminId === id) {
+      return res.status(400).json({ error: 'Cannot delete your own account.' });
+    }
+
+    const targetUser = await Admin.findById(id);
+    if (!targetUser) return res.status(404).json({ error: 'User not found.' });
+
+    await Admin.findByIdAndDelete(id);
+    return res.json({ data: { id, message: 'User deleted successfully' } });
+  } catch (error) {
+    console.error('Delete admin error:', error);
+    return res.status(500).json({ error: 'Server error while deleting admin.' });
   }
-
-  if (req.adminId === id) {
-    return res.status(400).json({ error: 'Cannot delete your own account.' });
-  }
-
-  const targetUser = await Admin.findById(id);
-  if (!targetUser) return res.status(404).json({ error: 'User not found.' });
-
-  await Admin.findByIdAndDelete(id);
-  return res.json({ data: { id, message: 'User deleted successfully' } });
 });
 
 app.get('/api/profile', requireAuth, async (req, res) => {
-  const admin = await Admin.findById(req.adminId);
-  if (!admin) return res.status(404).json({ error: 'Profile not found.' });
-  return res.json({ data: admin.toJSON() });
+  try {
+    const admin = await Admin.findById(req.adminId);
+    if (!admin) return res.status(404).json({ error: 'Profile not found.' });
+    return res.json({ data: admin.toJSON() });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    return res.status(500).json({ error: 'Server error while fetching profile.' });
+  }
 });
 
 app.put('/api/profile', requireAuth, async (req, res) => {
-  const { name, email, bio } = req.body || {};
-  const admin = await Admin.findByIdAndUpdate(
-    req.adminId,
-    { name, email, bio },
-    { new: true }
-  );
-  return res.json({ data: admin.toJSON() });
+  try {
+    const { name, email, bio } = req.body || {};
+    const admin = await Admin.findByIdAndUpdate(
+      req.adminId,
+      { name, email, bio },
+      { new: true }
+    );
+    return res.json({ data: admin.toJSON() });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({ error: 'Server error while updating profile.' });
+  }
 });
 
 app.post('/api/profile/avatar', requireAuth, upload.single('avatar'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
-  const admin = await Admin.findByIdAndUpdate(
-    req.adminId,
-    { avatar_url: req.file.path },
-    { new: true }
-  );
-  return res.json({ data: admin.toJSON() });
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+    const admin = await Admin.findByIdAndUpdate(
+      req.adminId,
+      { avatar_url: req.file.path },
+      { new: true }
+    );
+    return res.json({ data: admin.toJSON() });
+  } catch (error) {
+    console.error('Upload avatar error:', error);
+    return res.status(500).json({ error: 'Server error while uploading avatar.' });
+  }
 });
 
 app.get('/api/news', async (req, res) => {
-  const { limit = 12, category, q } = req.query;
-  const query = {};
-  if (category) query.category = category;
-  if (q) {
-    query.$or = [
-      { title: new RegExp(q, 'i') },
-      { content: new RegExp(q, 'i') }
-    ];
+  try {
+    const { limit = 12, category, q } = req.query;
+    const query = {};
+    if (category) query.category = category;
+    if (q) {
+      query.$or = [
+        { title: new RegExp(q, 'i') },
+        { content: new RegExp(q, 'i') }
+      ];
+    }
+
+    const news = await News.find(query)
+      .sort({ published_at: -1 })
+      .limit(Number(limit));
+
+    return res.json({ data: news.map(n => n.toJSON()) });
+  } catch (error) {
+    console.error('List news error:', error);
+    return res.status(500).json({ error: 'Server error while fetching news.' });
   }
-
-  const news = await News.find(query)
-    .sort({ published_at: -1 })
-    .limit(Number(limit));
-
-  return res.json({ data: news.map(n => n.toJSON()) });
 });
 
 app.get('/api/news/:slug', async (req, res) => {
-  const { slug } = req.params;
-  const news = await News.findOneAndUpdate(
-    { slug },
-    { $inc: { views: 1 } },
-    { new: true }
-  );
+  try {
+    const { slug } = req.params;
+    const news = await News.findOneAndUpdate(
+      { slug },
+      { $inc: { views: 1 } },
+      { new: true }
+    );
 
-  if (!news) return res.status(404).json({ error: 'News not found.' });
-  return res.json({ data: news.toJSON() });
+    if (!news) return res.status(404).json({ error: 'News not found.' });
+    return res.json({ data: news.toJSON() });
+  } catch (error) {
+    console.error('Get news error:', error);
+    return res.status(500).json({ error: 'Server error while fetching news.' });
+  }
 });
 
 async function findUniqueSlugMongoose(baseSlug) {
@@ -340,21 +395,31 @@ app.post('/api/uploads/media', requireAuth, upload.single('media'), async (req, 
 });
 
 app.get('/api/settings', async (req, res) => {
-  const settings = await SiteSettings.findOne().sort({ created_at: -1 });
-  return res.json({ data: settings ? settings.toJSON() : null });
+  try {
+    const settings = await SiteSettings.findOne().sort({ created_at: -1 });
+    return res.json({ data: settings ? settings.toJSON() : null });
+  } catch (error) {
+    console.error('Get settings error:', error);
+    return res.status(500).json({ error: 'Server error while fetching settings.' });
+  }
 });
 
 app.put('/api/settings', requireAuth, async (req, res) => {
-  const payload = req.body || {};
-  let settings = await SiteSettings.findOne().sort({ created_at: -1 });
+  try {
+    const payload = req.body || {};
+    let settings = await SiteSettings.findOne().sort({ created_at: -1 });
 
-  if (!settings) {
-    settings = await SiteSettings.create(payload);
-  } else {
-    Object.assign(settings, payload);
-    await settings.save();
+    if (!settings) {
+      settings = await SiteSettings.create(payload);
+    } else {
+      Object.assign(settings, payload);
+      await settings.save();
+    }
+    return res.json({ data: settings.toJSON() });
+  } catch (error) {
+    console.error('Update settings error:', error);
+    return res.status(500).json({ error: 'Server error while updating settings.' });
   }
-  return res.json({ data: settings.toJSON() });
 });
 
 if (!IS_VERCEL) {
