@@ -23,8 +23,8 @@ npm run dev
 ```
 
 ## Default Admin (Primary Only)
-- Email: `vipno1official@gmail.com`
-- Password: `preetam6388`
+- Email: `*******`
+- Password: `********`
 - Note: Only primary admin (id=1) is allowed to log in.
 - Credentials are force-reset on every server start.
 
