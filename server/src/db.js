@@ -95,6 +95,7 @@ export const initDb = async () => {
   if (isConnected) return;
 
   if (!MONGODB_URI) {
+    console.error('❌ MONGODB_URI environment variable is not defined.');
     throw new Error('MONGODB_URI environment variable is not defined.');
   }
 
